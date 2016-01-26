@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes.cs" />
     <Compile Include="ObjectModel.cs" />
     <Compile Include="StreamSync.cs" />
     <Compile Include="Sync.cs" />

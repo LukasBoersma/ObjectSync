@@ -5,9 +5,14 @@ namespace ObjectSync.Test
 {
     public class Foo
     {
+        [Synced]
         public int A;
+
+        [Synced]
         public double B { get; set; }
-        public bool C;
+
+        [Synced]
+        public string C;
 
         public override bool Equals(object obj)
         {
@@ -21,8 +26,13 @@ namespace ObjectSync.Test
 
     public class Bar
     {
+        [Synced]
         public Foo A;
+
+        [Synced]
         public Foo B;
+
+        [Synced]
         public bool C;
 
         public override bool Equals(object obj)
@@ -50,13 +60,13 @@ namespace ObjectSync.Test
                 {
                     A = 1,
                     B = 2,
-                    C = false
+                    C = "Hey"
                 },
                 B = new Foo
                 {
                     A = 4,
                     B = 5,
-                    C = true
+                    C = "Ho!"
                 },
                 C = false
             };

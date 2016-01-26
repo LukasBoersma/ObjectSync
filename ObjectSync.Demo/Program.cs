@@ -10,15 +10,20 @@ namespace ObjectSync.Demo
 {
     class Boo
     {
+        [Synced]
         public int a;
     }
 
     class Foo
     {
+        [Synced]
         public int x;
+        [Synced]
         public int y;
+        [Synced]
         public int z;
 
+        [Synced]
         public Boo b;
 
         public override string ToString()

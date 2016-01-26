@@ -21,17 +21,27 @@ namespace ObjectSync
             ObjectModels[typeof(T)] = new ClassModel<T>(constructor);
         }
 
+        static public bool CanSync(object from)
+        {
+            var type = from.GetType();
+            ObjectModel model;
+            var hasModel = ObjectModels.TryGetValue(type, out model);
+            return hasModel && model.CanTransfer;
+        }
+
         static public void SyncState(object from, object to)
         {
             var type = from.GetType();
             ObjectModel model;
             var hasModel = ObjectModels.TryGetValue(type, out model);
-            if (hasModel)
+            if (hasModel && model.CanTransfer)
+            {
                 model.Transfer(from, ref to);
+            }
             else if (type.IsValueType)
                 from = to;
             else
-                throw new InvalidOperationException("Syncing state of unknown type");
+                throw new InvalidOperationException("Syncing state of unknown or incompatible type");
         }
 
         static public object CreateCopy(object prototype)
@@ -41,10 +51,10 @@ namespace ObjectSync
 
             ObjectModel model;
             var hasModel = ObjectModels.TryGetValue(type, out model);
-            if (hasModel)
+            if (hasModel && model.CanTransfer)
                 copy = model.CreateInstance();
             else
-                throw new InvalidOperationException("Creating copy of unknown type");
+                throw new InvalidOperationException("Creating copy of unknown or incompatible type");
             
             SyncState(prototype, copy);
 

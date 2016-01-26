@@ -19,6 +19,8 @@ namespace ObjectSync
 
         public abstract object CreateInstance();
 
+        public abstract bool CanTransfer { get; }
+
         public ObjectModel(Type ObjectType)
         {
             Type = ObjectType;
@@ -29,7 +31,11 @@ namespace ObjectSync
         where T : class
     {
         public IEnumerable<FieldInfo> ValueFields { get; set; }
+        public IEnumerable<PropertyInfo> ValueProperties { get; set; }
         public IEnumerable<FieldInfo> ReferenceFields { get; set; }
+        public IEnumerable<PropertyInfo> ReferenceProperties { get; set; }
+
+        public override bool CanTransfer { get; } = true;
 
         public ClassModel(Func<T> customConstructor = null):
             base(typeof(T))
@@ -39,14 +45,26 @@ namespace ObjectSync
             var allFields = Type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             ValueFields = (from field in allFields
-                           where field.FieldType.IsValueType
-                           select field)
-                           .ToArray();
+                            where field.FieldType.IsValueType && Attribute.IsDefined(field, typeof(Synced), true)
+                            select field)
+                            .ToArray();
 
             ReferenceFields = (from field in allFields
-                           where !field.FieldType.IsValueType
-                           select field)
-                           .ToArray();
+                                where !field.FieldType.IsValueType && Attribute.IsDefined(field, typeof(Synced), true)
+                                select field)
+                                .ToArray();
+
+            var allProperties = Type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            ValueProperties = (from prop in allProperties
+                                where prop.PropertyType.IsValueType && Attribute.IsDefined(prop, typeof(Synced), true)
+                                select prop)
+                                .ToArray();
+
+            ReferenceProperties = (from prop in allProperties
+                                    where !prop.PropertyType.IsValueType && Attribute.IsDefined(prop, typeof(Synced), true)
+                                    select prop)
+                                    .ToArray();
         }
 
         public override void Transfer(object from, ref object to)
@@ -54,27 +72,65 @@ namespace ObjectSync
             if (!(from is T) || !(to is T))
                 throw new InvalidOperationException("Calling Transfer with incompatible types");
 
-            foreach(var field in ValueFields)
+            foreach (var field in ValueFields)
             {
                 var value = field.GetValue(from);
                 field.SetValue(to, value);
             }
 
-            foreach(var field in ReferenceFields)
+            foreach (var prop in ValueProperties)
+            {
+                var value = prop.GetValue(from);
+                prop.SetValue(to, value);
+            }
+
+            foreach (var field in ReferenceFields)
             {
                 var fromValue = field.GetValue(from);
                 var toValue = field.GetValue(to);
 
                 if (fromValue != null)
                 {
-                    if (toValue != null)
-                        Sync.SyncState(fromValue, toValue);
+                    if (Sync.CanSync(fromValue))
+                    {
+                        if (toValue != null)
+                            Sync.SyncState(fromValue, toValue);
+                        else
+                            field.SetValue(to, Sync.CreateCopy(fromValue));
+                    }
                     else
-                        field.SetValue(to, Sync.CreateCopy(fromValue));
+                    {
+                        field.SetValue(to, fromValue);
+                    }
                 }
                 else
                 {
                     field.SetValue(to, null);
+                }
+            }
+
+            foreach (var prop in ReferenceProperties)
+            {
+                var fromValue = prop.GetValue(from);
+                var toValue = prop.GetValue(to);
+
+                if (fromValue != null)
+                {
+                    if (Sync.CanSync(fromValue))
+                    {
+                        if (toValue != null)
+                            Sync.SyncState(fromValue, toValue);
+                        else
+                            prop.SetValue(to, Sync.CreateCopy(fromValue));
+                    }
+                    else
+                    {
+                        prop.SetValue(to, fromValue);
+                    }
+                }
+                else
+                {
+                    prop.SetValue(to, null);
                 }
             }
         }
@@ -93,6 +149,8 @@ namespace ObjectSync
         {
 
         }
+
+        public override bool CanTransfer { get; } = false;
 
         public override object CreateInstance()
         {
