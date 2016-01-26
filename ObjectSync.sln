@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObjectSync", "ObjectSync\ObjectSync.csproj", "{B186DF64-93E8-441E-8F43-85A8F9E4DD0B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObjectSync.Demo", "ObjectSync.Demo\ObjectSync.Demo.csproj", "{0AB5A2FE-B744-4E3C-8062-6D12A2B4672B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObjectSync.Test", "ObjectSync.Test\ObjectSync.Test.csproj", "{AA8D0EB3-2112-4204-9A67-7849C1E63412}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B186DF64-93E8-441E-8F43-85A8F9E4DD0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B186DF64-93E8-441E-8F43-85A8F9E4DD0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B186DF64-93E8-441E-8F43-85A8F9E4DD0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B186DF64-93E8-441E-8F43-85A8F9E4DD0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AB5A2FE-B744-4E3C-8062-6D12A2B4672B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AB5A2FE-B744-4E3C-8062-6D12A2B4672B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AB5A2FE-B744-4E3C-8062-6D12A2B4672B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AB5A2FE-B744-4E3C-8062-6D12A2B4672B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA8D0EB3-2112-4204-9A67-7849C1E63412}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA8D0EB3-2112-4204-9A67-7849C1E63412}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA8D0EB3-2112-4204-9A67-7849C1E63412}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA8D0EB3-2112-4204-9A67-7849C1E63412}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
