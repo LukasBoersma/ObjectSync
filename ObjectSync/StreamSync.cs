@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Newtonsoft.Json;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace ObjectSync
 {
@@ -25,7 +26,7 @@ namespace ObjectSync
         public bool Receiving;
         public Thread ReceivingThread;
 
-        public Queue<object> UnappliedUpdates = new Queue<object>();
+        public ConcurrentQueue<object> UnappliedUpdates = new ConcurrentQueue<object>();
 
         public StreamSync(Stream stream)
         {
@@ -45,23 +46,28 @@ namespace ObjectSync
         int StartReadPackage()
         {
             var head = new byte[2];
-            Stream.Read(head, 0, 2);
-            if (!head.Equals(MagicBytes))
-                throw new InvalidDataException("Corrupted data received. Magic header bytes did not match.");
+            var readBytes = Stream.Read(head, 0, 2);
+			if (readBytes > 0)
+			{
+				if (!(head[0] == MagicBytes[0] && head[1] == MagicBytes[1]))
+					throw new InvalidDataException("Corrupted data received. Magic header bytes did not match.");
             
-            Stream.Read(head, 0, 2);
-            if (!head.Equals(VersionNumber))
-                throw new InvalidDataException("Received package from incompatible protocol version.");
+				Stream.Read(head, 0, 2);
+				if (!(head[0] == VersionNumber[0] && head[1] == VersionNumber[1]))
+					throw new InvalidDataException("Received package from incompatible protocol version.");
 
-            var lengthBytes = new byte[4];
-            Stream.Read(lengthBytes, 0, 4);
+				var lengthBytes = new byte[4];
+				Stream.Read(lengthBytes, 0, 4);
 
-            return BitConverter.ToInt32(lengthBytes, 0);
+				return BitConverter.ToInt32(lengthBytes, 0);
+			}
+			else
+				return -1;
         }
 
-        public void Serialize(object obj)
+        public void WriteUpdate(object obj)
         {
-            var typeId = obj.GetType().FullName;
+            var typeId = obj.GetType().AssemblyQualifiedName;
             var serialized = JsonConvert.SerializeObject(obj);
             var dataString = typeId + TypeIdSeparator + serialized;
             var data = Encoding.UTF8.GetBytes(dataString);
@@ -69,32 +75,39 @@ namespace ObjectSync
             Stream.Write(data, 0, data.Length);
         }
 
-        public object Deserialize()
+        public object ReadUpdate()
         {
             var packageLength = StartReadPackage();
-            var data = new byte[packageLength];
-            Stream.Read(data, 0, packageLength);
+			if (packageLength > 0)
+			{
+				var data = new byte[packageLength];
+				Stream.Read(data, 0, packageLength);
 
-            var dataString = Encoding.UTF8.GetString(data);
+				var dataString = Encoding.UTF8.GetString(data);
 
-            var packageItems = dataString.Split(new string[1] { TypeIdSeparator }, 1, StringSplitOptions.None);
+				var packageItems = dataString.Split(new string[1] { TypeIdSeparator }, 2, StringSplitOptions.None);
 
-            if (packageItems.Length != 2)
-                throw new InvalidDataException("Invalid package format, unable to separate type id from object data");
+				if (packageItems.Length != 2)
+					throw new InvalidDataException("Invalid package format, unable to separate type id from object data");
 
-            var typeId = packageItems[0];
-            var type = Type.GetType(typeId);
+				var typeId = packageItems[0];
+				var type = Type.GetType(typeId);
+				if(type == null)
+                    throw new InvalidDataException("Received update for unknown type: " + typeId);
 
-            var serialized = packageItems[1];
+				var serialized = packageItems[1];
 
-            return JsonConvert.DeserializeObject(serialized, type);
+				return JsonConvert.DeserializeObject(serialized, type);
+			}
+			else
+				return null;
         }
         
         public void WriteUpdates(IEnumerable<object> objects)
         {
             foreach(var obj in objects)
             {
-                Serialize(obj);
+                WriteUpdate(obj);
             }
         }
 
@@ -109,10 +122,16 @@ namespace ObjectSync
             {
                 while (Receiving)
                 {
-                    var obj = Deserialize();
-                    UnappliedUpdates.Enqueue(obj);
+                    var obj = ReadUpdate();
+					if(obj != null)
+					{
+						UnappliedUpdates.Enqueue(obj);
+					}
+					else
+						Thread.Sleep(1);
                 }
             });
+			ReceivingThread.Start();
         }
 
         public void StopReceiving()
@@ -124,14 +143,18 @@ namespace ObjectSync
             ReceivingThread.Join();
         }
 
-        public void ApplyReceivedUpdates(Func<object,object> identify)
+        public int ApplyReceivedUpdates(Func<object,object> identify)
         {
-            while(UnappliedUpdates.Count > 0)
+			int count = 0;
+            object update;
+            while(UnappliedUpdates.TryDequeue(out update))
             {
-                var update = UnappliedUpdates.Dequeue();
                 var target = identify(update);
                 Sync.SyncState(update, target);
+				count++;
             }
+
+			return count;
         }
     }
 }
