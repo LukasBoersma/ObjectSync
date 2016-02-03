@@ -46,6 +46,7 @@ namespace ObjectSync.Demo
     {
         static void Main(string[] args)
         {
+            // All synced classes must be registered
             Sync.RegisterClass<Foo>(() => new Foo());
             Sync.RegisterClass<Boo>(() => new Boo());
             Sync.RegisterClass<StreamedObject>(() => new StreamedObject());
@@ -63,13 +64,15 @@ namespace ObjectSync.Demo
             
             var b = new Foo();
 
+            // Synchronize the state of a to b
             Sync.SyncState(a, b);
 
+            // Now all values in a and b should be the same
             Console.WriteLine(a);
             Console.WriteLine(b);
 
+            // Synchronization via stream, see below
             var stream = new MemoryStream();
-
             StreamServer(stream);
             stream.Seek(0, SeekOrigin.Begin);
             StreamClient(stream);
