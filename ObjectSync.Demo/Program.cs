@@ -33,20 +33,20 @@ namespace ObjectSync.Demo
         }
     }
 
-	class StreamedObject
-	{
-		[Synced]
-		public int Id;
+    class StreamedObject
+    {
+        [Synced]
+        public int Id;
 
-		[Synced]
-		public int B;
-	}
+        [Synced]
+        public int B;
+    }
 
     class Program
     {
         static void Main(string[] args)
         {
-            Sync.RegisterClass<Foo>(()=>new Foo());
+            Sync.RegisterClass<Foo>(() => new Foo());
             Sync.RegisterClass<Boo>(() => new Boo());
             Sync.RegisterClass<StreamedObject>(() => new StreamedObject());
 
@@ -68,50 +68,52 @@ namespace ObjectSync.Demo
             Console.WriteLine(a);
             Console.WriteLine(b);
 
-			var stream = new MemoryStream ();
+            var stream = new MemoryStream();
 
-			StreamServer(stream);
-			stream.Seek(0, SeekOrigin.Begin);
-			StreamClient(stream);
+            StreamServer(stream);
+            stream.Seek(0, SeekOrigin.Begin);
+            StreamClient(stream);
         }
 
-		static void StreamServer(Stream stream)
-		{
-			var objsById = new Dictionary<int, StreamedObject> ();
-			for (int i = 0; i < 10; i++)
-			{
-				objsById [i] = new StreamedObject {
-					Id = i,
-					B = 15 * i * i
-				};
-			}
+        static void StreamServer(Stream stream)
+        {
+            var objsById = new Dictionary<int, StreamedObject>();
+            for (int i = 0; i < 10; i++)
+            {
+                objsById[i] = new StreamedObject
+                {
+                    Id = i,
+                    B = 15 * i * i
+                };
+            }
 
-			var streamSync = new StreamSync (stream);
+            var streamSync = new StreamSync(stream);
 
-			streamSync.WriteUpdates (objsById.Values);
-		}
+            streamSync.WriteUpdates(objsById.Values);
+        }
 
-		static void StreamClient(Stream stream)
-		{
-			var objsById = new Dictionary<int, StreamedObject> ();
-			var streamSync = new StreamSync (stream);
-			streamSync.BeginReceive();
+        static void StreamClient(Stream stream)
+        {
+            var objsById = new Dictionary<int, StreamedObject>();
+            var streamSync = new StreamSync(stream);
+            streamSync.BeginReceive();
 
-			Func<object,object> identify = (o) => {
-				var obj = o as StreamedObject;
-				if(objsById.ContainsKey(obj.Id))
-					return objsById[obj.Id];
-				else
-					return new StreamedObject();
-			};
+            Func<object,object> identify = (o) =>
+            {
+                var obj = o as StreamedObject;
+                if (objsById.ContainsKey(obj.Id))
+                    return objsById[obj.Id];
+                else
+                    return new StreamedObject();
+            };
 
-			while (true)
-			{
-				var updateCount = streamSync.ApplyReceivedUpdates(identify);
-				if(updateCount > 0)
+            while (true)
+            {
+                var updateCount = streamSync.ApplyReceivedUpdates(identify);
+                if (updateCount > 0)
                     Console.WriteLine(String.Format("Received {0} updates", updateCount));
-				System.Threading.Thread.Sleep(100);
-			}
-		}
+                System.Threading.Thread.Sleep(100);
+            }
+        }
     }
 }

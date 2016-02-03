@@ -47,22 +47,22 @@ namespace ObjectSync
         {
             var head = new byte[2];
             var readBytes = Stream.Read(head, 0, 2);
-			if (readBytes > 0)
-			{
-				if (!(head[0] == MagicBytes[0] && head[1] == MagicBytes[1]))
-					throw new InvalidDataException("Corrupted data received. Magic header bytes did not match.");
+            if (readBytes > 0)
+            {
+                if (!(head[0] == MagicBytes[0] && head[1] == MagicBytes[1]))
+                    throw new InvalidDataException("Corrupted data received. Magic header bytes did not match.");
             
-				Stream.Read(head, 0, 2);
-				if (!(head[0] == VersionNumber[0] && head[1] == VersionNumber[1]))
-					throw new InvalidDataException("Received package from incompatible protocol version.");
+                Stream.Read(head, 0, 2);
+                if (!(head[0] == VersionNumber[0] && head[1] == VersionNumber[1]))
+                    throw new InvalidDataException("Received package from incompatible protocol version.");
 
-				var lengthBytes = new byte[4];
-				Stream.Read(lengthBytes, 0, 4);
+                var lengthBytes = new byte[4];
+                Stream.Read(lengthBytes, 0, 4);
 
-				return BitConverter.ToInt32(lengthBytes, 0);
-			}
-			else
-				return -1;
+                return BitConverter.ToInt32(lengthBytes, 0);
+            }
+            else
+                return -1;
         }
 
         public void WriteUpdate(object obj)
@@ -78,29 +78,29 @@ namespace ObjectSync
         public object ReadUpdate()
         {
             var packageLength = StartReadPackage();
-			if (packageLength > 0)
-			{
-				var data = new byte[packageLength];
-				Stream.Read(data, 0, packageLength);
+            if (packageLength > 0)
+            {
+                var data = new byte[packageLength];
+                Stream.Read(data, 0, packageLength);
 
-				var dataString = Encoding.UTF8.GetString(data);
+                var dataString = Encoding.UTF8.GetString(data);
 
-				var packageItems = dataString.Split(new string[1] { TypeIdSeparator }, 2, StringSplitOptions.None);
+                var packageItems = dataString.Split(new string[1] { TypeIdSeparator }, 2, StringSplitOptions.None);
 
-				if (packageItems.Length != 2)
-					throw new InvalidDataException("Invalid package format, unable to separate type id from object data");
+                if (packageItems.Length != 2)
+                    throw new InvalidDataException("Invalid package format, unable to separate type id from object data");
 
-				var typeId = packageItems[0];
-				var type = Type.GetType(typeId);
-				if(type == null)
+                var typeId = packageItems[0];
+                var type = Type.GetType(typeId);
+                if(type == null)
                     throw new InvalidDataException("Received update for unknown type: " + typeId);
 
-				var serialized = packageItems[1];
+                var serialized = packageItems[1];
 
-				return JsonConvert.DeserializeObject(serialized, type);
-			}
-			else
-				return null;
+                return JsonConvert.DeserializeObject(serialized, type);
+            }
+            else
+                return null;
         }
         
         public void WriteUpdates(IEnumerable<object> objects)
@@ -123,15 +123,15 @@ namespace ObjectSync
                 while (Receiving)
                 {
                     var obj = ReadUpdate();
-					if(obj != null)
-					{
-						UnappliedUpdates.Enqueue(obj);
-					}
-					else
-						Thread.Sleep(1);
+                    if(obj != null)
+                    {
+                        UnappliedUpdates.Enqueue(obj);
+                    }
+                    else
+                        Thread.Sleep(1);
                 }
             });
-			ReceivingThread.Start();
+            ReceivingThread.Start();
         }
 
         public void StopReceiving()
@@ -145,16 +145,16 @@ namespace ObjectSync
 
         public int ApplyReceivedUpdates(Func<object,object> identify)
         {
-			int count = 0;
+            int count = 0;
             object update;
             while(UnappliedUpdates.TryDequeue(out update))
             {
                 var target = identify(update);
                 Sync.SyncState(update, target);
-				count++;
+                count++;
             }
 
-			return count;
+            return count;
         }
     }
 }
