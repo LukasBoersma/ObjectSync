@@ -15,6 +15,10 @@ namespace ObjectSync
             get; set;
         }
 
+        static UInt16 TypeIdCounter = 0;
+
+        public UInt16 TypeId { get; set; } = TypeIdCounter++;
+
         public abstract void Transfer(object from, ref object to);
 
         public abstract object CreateInstance();
@@ -57,12 +61,12 @@ namespace ObjectSync
             var allProperties = Type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             ValueProperties = (from prop in allProperties
-                                where prop.PropertyType.IsValueType && Attribute.IsDefined(prop, typeof(Synced), true)
+                                where prop.PropertyType.IsValueType && prop.CanWrite && Attribute.IsDefined(prop, typeof(Synced), true)
                                 select prop)
                                 .ToArray();
 
             ReferenceProperties = (from prop in allProperties
-                                    where !prop.PropertyType.IsValueType && Attribute.IsDefined(prop, typeof(Synced), true)
+                                    where !prop.PropertyType.IsValueType && prop.CanWrite && Attribute.IsDefined(prop, typeof(Synced), true)
                                     select prop)
                                     .ToArray();
         }

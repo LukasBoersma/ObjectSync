@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
 using System.Threading;
 using System.Collections.Concurrent;
 
@@ -16,88 +15,80 @@ namespace ObjectSync
         public Stream Stream { get; set; }
 
         readonly byte[] MagicBytes = new byte[2] { 0xb0, 0xca };
-        readonly byte[] VersionNumber = new byte[2] { 0x00, 0x01 };
-        const string TypeIdSeparator = "\n---\n";
-
-        JsonSerializer Serializer;
-        JsonWriter Writer;
-        JsonReader Reader;
+        readonly byte[] VersionNumber = new byte[2] { 0x00, 0x02 };
 
         public bool Receiving;
         public Thread ReceivingThread;
 
         public ConcurrentQueue<object> UnappliedUpdates = new ConcurrentQueue<object>();
 
+        public bool HasUnappliedUpdates {  get { return !UnappliedUpdates.IsEmpty; } }
+
         public StreamSync(Stream stream)
         {
             Stream = stream;
-            Writer = new JsonTextWriter(new StreamWriter(Stream));
-            Reader = new JsonTextReader(new StreamReader(Stream));
-            Serializer = new JsonSerializer();
         }
 
-        void StartSendPackage(Int32 length)
+        void SendPackageHeader(ObjectModel model, Int32 length)
         {
             Stream.Write(MagicBytes, 0, MagicBytes.Length);
             Stream.Write(VersionNumber, 0, VersionNumber.Length);
-            Stream.Write(BitConverter.GetBytes(length),0, 4);
+            Stream.Write(BitConverter.GetBytes(model.TypeId), 0, 2);
+            Stream.Write(BitConverter.GetBytes(length), 0, 4);
         }
 
-        int StartReadPackage()
+        void ReadPackageHead(out int dataLength, out ObjectModel model)
         {
             var head = new byte[2];
             var readBytes = Stream.Read(head, 0, 2);
             if (readBytes > 0)
             {
+                // Check Magic bytes
                 if (!(head[0] == MagicBytes[0] && head[1] == MagicBytes[1]))
                     throw new InvalidDataException("Corrupted data received. Magic header bytes did not match.");
-            
+
+                // Check version number
                 Stream.Read(head, 0, 2);
                 if (!(head[0] == VersionNumber[0] && head[1] == VersionNumber[1]))
                     throw new InvalidDataException("Received package from incompatible protocol version.");
 
+                // Get the type id
+                Stream.Read(head, 0, 2);
+                UInt16 typeId = BitConverter.ToUInt16(head, 0);
+
+                model = Sync.FindModelFromTypeId(typeId);
+
                 var lengthBytes = new byte[4];
                 Stream.Read(lengthBytes, 0, 4);
 
-                return BitConverter.ToInt32(lengthBytes, 0);
+                dataLength = BitConverter.ToInt32(lengthBytes, 0);
             }
             else
-                return -1;
+            {
+                dataLength = -1;
+                model = null;
+            }
         }
 
         public void WriteUpdate(object obj)
         {
-            var typeId = obj.GetType().AssemblyQualifiedName;
-            var serialized = JsonConvert.SerializeObject(obj);
-            var dataString = typeId + TypeIdSeparator + serialized;
-            var data = Encoding.UTF8.GetBytes(dataString);
-            StartSendPackage(data.Length);
+            var model = Sync.FindModelFromType(obj.GetType());
+            var data = Serializer.Serialize(obj, model);
+            SendPackageHeader(model, data.Length);
             Stream.Write(data, 0, data.Length);
         }
 
         public object ReadUpdate()
         {
-            var packageLength = StartReadPackage();
+            ObjectModel model;
+            int packageLength;
+            ReadPackageHead(out packageLength, out model);
             if (packageLength > 0)
             {
                 var data = new byte[packageLength];
                 Stream.Read(data, 0, packageLength);
-
-                var dataString = Encoding.UTF8.GetString(data);
-
-                var packageItems = dataString.Split(new string[1] { TypeIdSeparator }, 2, StringSplitOptions.None);
-
-                if (packageItems.Length != 2)
-                    throw new InvalidDataException("Invalid package format, unable to separate type id from object data");
-
-                var typeId = packageItems[0];
-                var type = Type.GetType(typeId);
-                if(type == null)
-                    throw new InvalidDataException("Received update for unknown type: " + typeId);
-
-                var serialized = packageItems[1];
-
-                return JsonConvert.DeserializeObject(serialized, type);
+                
+                return Serializer.Deserialize(data, model);
             }
             else
                 return null;
@@ -150,7 +141,8 @@ namespace ObjectSync
             while(UnappliedUpdates.TryDequeue(out update))
             {
                 var target = identify(update);
-                Sync.SyncState(update, target);
+                if(target != null)
+                    Sync.SyncState(update, target);
                 count++;
             }
 

@@ -8,24 +8,46 @@ namespace ObjectSync
 {
     public static class Sync
     {
-        static Dictionary<Type, ObjectModel> ObjectModels = new Dictionary<Type, ObjectModel>();
+        static Dictionary<Type, ObjectModel> ModelsByType = new Dictionary<Type, ObjectModel>();
+        static Dictionary<UInt16, ObjectModel> ModelsByTypeId = new Dictionary<UInt16, ObjectModel>();
 
         static Sync()
         {
-            ObjectModels[typeof(string)] = new StringModel();
+            RegisterModel(new StringModel());
+        }
+        
+
+        static public ObjectModel FindModelFromType(Type type)
+        {
+            ObjectModel model = null;
+            ModelsByType.TryGetValue(type, out model);
+            return model;
+        }
+
+        static public ObjectModel FindModelFromTypeId(UInt16 typeId)
+        {
+            ObjectModel model = null;
+            ModelsByTypeId.TryGetValue(typeId, out model);
+            return model;
+        }
+
+        static public void RegisterModel(ObjectModel model)
+        {
+            ModelsByType[model.Type] = model;
+            ModelsByTypeId[model.TypeId] = model;
         }
 
         static public void RegisterClass<T>(Func<T> constructor)
             where T : class
         {
-            ObjectModels[typeof(T)] = new ClassModel<T>(constructor);
+            RegisterModel(new ClassModel<T>(constructor));
         }
 
         static public bool CanSync(object from)
         {
             var type = from.GetType();
             ObjectModel model;
-            var hasModel = ObjectModels.TryGetValue(type, out model);
+            var hasModel = ModelsByType.TryGetValue(type, out model);
             return hasModel && model.CanTransfer;
         }
 
@@ -33,7 +55,7 @@ namespace ObjectSync
         {
             var type = from.GetType();
             ObjectModel model;
-            var hasModel = ObjectModels.TryGetValue(type, out model);
+            var hasModel = ModelsByType.TryGetValue(type, out model);
             if (hasModel && model.CanTransfer)
             {
                 model.Transfer(from, ref to);
@@ -50,7 +72,7 @@ namespace ObjectSync
             object copy = null;
 
             ObjectModel model;
-            var hasModel = ObjectModels.TryGetValue(type, out model);
+            var hasModel = ModelsByType.TryGetValue(type, out model);
             if (hasModel && model.CanTransfer)
                 copy = model.CreateInstance();
             else
